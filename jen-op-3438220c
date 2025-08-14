@@ -1,43 +1,120 @@
 pipeline {
     agent any
+
     stages {
-        stage('Stage 1 - Checkout') {
+
+        // Stage 1: Backup & Update QA Server
+        stage('Op-3438220c-S1') {
             steps {
-                deleteDir()
-                git credentialsId: 'Halfspringchicken', url: 'https://github.com/Halfspringchicken/3438220c-op-repo.git'
+                script {
+                    sh """
+                    echo "Removing old QA backup image if exists..."
+                    docker image rm qa_bkup_image || true
+
+                    echo "Creating new QA backup image..."
+                    docker commit 3438220c-qa-svr qa_bkup_image
+
+                    echo "Updating QA server via Bolt script..."
+                    bolt script run /path/to/3438220c_script --targets 3438220c-qa-svr.localdomain
+
+                    echo "Op-S1-3438220c: QA web server is backup and updated"
+                    """
+                }
             }
         }
-        stage('Stage 2 - Web Test QA (Before)') {
+
+        // Stage 2: Curl Test QA Server
+        stage('Op-3438220c-S2') {
             steps {
-                sh 'curl -Is http://localhost:33200 | head -n 1 > /tmp/qa-result-before'
-                sh 'cat /tmp/qa-result-before'
+                sh """
+                curl -Is http://localhost:33200 | head -n 1 > /tmp/qa-result-file
+                echo "Op-3438220c-S2: Checking on whether QA server is running after update"
+                cat /tmp/qa-result-file
+                """
             }
         }
-        stage('Stage 3 - Deploy to QA') {
+
+        // Stage 3: QA Rollout or Rollback
+        stage('Op-3438220c-S3') {
             steps {
-                sh 'bolt script run 3438220c_script --targets 3438220c-qa-svr'
+                script {
+                    def result = sh(script: "grep 'HTTP/1.1 200 OK' /tmp/qa-result-file || true", returnStdout: true).trim()
+                    if (result) {
+                        echo "Op-3438220c-S3: Proceed to roll out to Prod server"
+                    } else {
+                        sh """
+                        docker stop 3438220c-qa-svr
+                        docker rm 3438220c-qa-svr
+                        docker run -dit --name 3438220c-qa-svr \
+                            --hostname 3438220c-qa-svr.localdomain \
+                            --net customnetwork --ip 192.168.100.110 \
+                            -p 33200:80 qa_bkup_image
+                        """
+                        echo "Op-3438220c-S3: QA server fails after update and is rolled back"
+                        error('Aborting')
+                    }
+                }
             }
         }
-        stage('Stage 4 - Verify QA') {
+
+        // Stage 4: Backup & Update Prod Server
+        stage('Op-3438220c-S4') {
             steps {
-                sh 'curl -Is http://localhost:33200 | head -n 1 > /tmp/qa-result-after'
-                sh 'cat /tmp/qa-result-after'
+                script {
+                    sh """
+                    echo "Removing old Prod backup image if exists..."
+                    docker image rm prod_bkup_image || true
+
+                    echo "Creating new Prod backup image..."
+                    docker commit 3438220c-prod-svr prod_bkup_image
+
+                    echo "Updating Prod server via Bolt script..."
+                    bolt script run /path/to/3438220c_script --targets 3438220c-prod-svr.localdomain
+
+                    echo "Op-S4-3438220c: Prod web server is backup and updated"
+                    """
+                }
             }
         }
-        stage('Stage 5 - Deploy to PROD') {
+
+        // Stage 5: Curl Test Prod Server
+        stage('Op-3438220c-S5') {
             steps {
-                sh 'bolt script run 3438220c_script --targets 3438220c-prod-svr'
+                sh """
+                curl -Is http://localhost:33500 | head -n 1 > /tmp/prod-result-file
+                echo "Op-3438220c-S5: Checking on whether Prod server is running after update"
+                cat /tmp/prod-result-file
+                """
             }
         }
-        stage('Stage 6 - Verify PROD') {
+
+        // Stage 6: Prod Release or Rollback
+        stage('Op-3438220c-S6') {
             steps {
-                sh 'curl -Is http://localhost:33500 | head -n 1 > /tmp/prod-result'
-                sh 'cat /tmp/prod-result'
+                script {
+                    def result = sh(script: "grep 'HTTP/1.1 200 OK' /tmp/prod-result-file || true", returnStdout: true).trim()
+                    if (result) {
+                        echo "Op-3438220c-S6: Proceed to release Prod web server to production"
+                    } else {
+                        sh """
+                        docker stop 3438220c-prod-svr
+                        docker rm 3438220c-prod-svr
+                        docker run -dit --name 3438220c-prod-svr \
+                            --hostname 3438220c-prod-svr.localdomain \
+                            --net customnetwork --ip 192.168.100.220 \
+                            -p 33500:80 prod_bkup_image
+                        """
+                        echo "Op-3438220c-S6: Prod web server is rolled back"
+                        error('Aborting')
+                    }
+                }
             }
         }
-        stage('Stage 7 - Complete') {
+
+        // Stage 7: Monitoring Confirmation
+        stage('Op-3438220c-S7') {
             steps {
-                echo 'Deployment Completed'
+                echo "Op-3438220c-S7: Prod web server is monitored and ready to serve."
             }
         }
     }
