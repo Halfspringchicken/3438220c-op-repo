@@ -9,7 +9,7 @@ rm -rf /operate/3438220c
 mkdir -p /operate/3438220c
 
 # Clone repo
-git clone https://github.com/<your-github-username>/3438220c-op-repo.git /operate/3438220c
+git clone https://github.com/Halfspringchicken/3438220c-op-repo.git /operate/3438220c
 
 # Replace index.html
 cp /operate/3438220c/index-op-3438220c.html /var/www/html/index.html
