@@ -15,7 +15,7 @@ pipeline {
                     docker commit 3438220c-qa-svr qa_bkup_image
 
                     echo "Updating QA server via Bolt script..."
-                    bolt script run /path/to/3438220c_script --targets 3438220c-qa-svr.localdomain
+                    bolt script run /https://github.com/Halfspringchicken/3438220c-op-repo/blob/main/3438220c_script --targets 3438220c-qa-svr.localdomain
 
                     echo "Op-S1-3438220c: QA web server is backup and updated"
                     """
@@ -69,7 +69,7 @@ pipeline {
                     docker commit 3438220c-prod-svr prod_bkup_image
 
                     echo "Updating Prod server via Bolt script..."
-                    bolt script run /path/to/3438220c_script --targets 3438220c-prod-svr.localdomain
+                    bolt script run /https://github.com/Halfspringchicken/3438220c-op-repo/blob/main/3438220c_script --targets 3438220c-prod-svr.localdomain
 
                     echo "Op-S4-3438220c: Prod web server is backup and updated"
                     """
