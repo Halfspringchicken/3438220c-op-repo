@@ -4,7 +4,7 @@ pipeline {
         stage('Stage 1 - Checkout') {
             steps {
                 deleteDir()
-                git credentialsId: 'your-creds-id', url: 'https://github.com/<your-github-username>/3438220c-op-repo.git'
+                git credentialsId: 'Halfspringchicken', url: 'https://github.com/Halfspringchicken/3438220c-op-repo.git'
             }
         }
         stage('Stage 2 - Web Test QA (Before)') {
