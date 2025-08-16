@@ -1,15 +1,9 @@
 #!/bin/bash
 
-# Ensure Apache is installed and running
+
 puppet resource package apache2 ensure=installed
 puppet resource service apache2 ensure=running enable=true
-
-# Clean and recreate target directory
 rm -rf /operate/3438220c
 mkdir -p /operate/3438220c
-
-# Clone repo
 git clone https://github.com/Halfspringchicken/3438220c-op-repo.git /operate/3438220c
-
-# Replace index.html
 cp /operate/3438220c/index-op-3438220c.html /var/www/html/index.html
