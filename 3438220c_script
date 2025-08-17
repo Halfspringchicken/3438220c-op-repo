@@ -1,15 +1,8 @@
 #!/bin/bash
 
-# Ensure Apache2 is installed and running
 puppet resource package apache2 ensure=present
 puppet resource service apache2 ensure=running enable=true
-
-# Clean up and recreate directory
 puppet resource file /operate/3438220c ensure=absent
 puppet resource file /operate/3438220c ensure=directory
-
-# Clone repo
 git clone https://github.com/Halfspringchicken/3438220c-op-repo.git /operate/3438220c
-
-# Replace index.html
 puppet resource file /var/www/html/index.html ensure=file source=/operate/3438220c/index-op-3438220c.html
