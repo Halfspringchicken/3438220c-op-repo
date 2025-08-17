@@ -14,7 +14,7 @@ stages {
             docker run --rm \
               -v /var/run/docker.sock:/var/run/docker.sock \
               -v ${WORKSPACE}:/workspace \
-              puppet/bolt:3.17.0-1bionic \  
+              puppet/bolt:3.17.0-1bionic   
               script run /workspace/3438220c_script \
               --targets docker://3438220c-qa-svr
             '''
