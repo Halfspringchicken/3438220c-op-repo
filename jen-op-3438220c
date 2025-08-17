@@ -1,23 +1,25 @@
 pipeline {
     agent any
     
-    stages {
-        stage('Op-3438220c-S1') {
-            steps {
-                script {
-                    // Remove old QA backup if exists
-                    sh 'sudo docker rmi -f qa-bkup-image || true'  
-                    
-                    // Create new QA backup
-                    sh 'sudo docker commit 3438220c-qa-svr qa-bkup-image'
-                    
-                    // Update QA server
-                    sh 'bolt script run "/operate/3438220c/3438220c_script" --targets 3438220c-qa-svr'
-                    
-                    echo "Op-S1-3438220c: QA web server is backup and updated"
-                }
-            }
+   stage('Op-3438220c-S1') {
+    steps {
+        script {
+            // Backup steps (unchanged)
+            sh 'sudo docker rmi -f qa-bkup-image || true'
+            sh 'sudo docker commit 3438220c-qa-svr qa-bkup-image'
+            
+            // Replace Bolt command with containerized version
+            sh '''
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v ${WORKSPACE}:/workspace \
+              puppet/bolt:3.17.0 \
+              script run /workspace/3438220c_script \
+              --targets docker://3438220c-qa-svr
+            '''
         }
+    }
+}
         
         stage('Op-3438220c-S2') {
             steps {
