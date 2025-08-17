@@ -6,7 +6,7 @@ pipeline {
             steps {
                 script {
                     // Remove old QA backup if exists
-                    sh 'sudo docker rmi -f qa-bkup-image || true'  # || true prevents failure
+                    sh 'sudo docker rmi -f qa-bkup-image || true'  
                     
                     // Create new QA backup
                     sh 'sudo docker commit 3438220c-qa-svr qa-bkup-image'
@@ -70,7 +70,7 @@ pipeline {
             steps {
                 script {
                     // Remove old Prod backup if exists
-                    sh 'sudo docker rmi -f prod-bkup-image || true'  # || true prevents failure
+                    sh 'sudo docker rmi -f prod-bkup-image || true'  
                     
                     // Create new Prod backup
                     sh 'sudo docker commit 3438220c-prod-svr prod-bkup-image'
