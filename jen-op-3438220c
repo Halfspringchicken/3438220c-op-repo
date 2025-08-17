@@ -49,16 +49,27 @@ pipeline {
                     )
                     
                     if(proceed == 'Rollback') {
-                        sh '''
-                        sudo docker stop 3438220c-qa-svr
-                        sudo docker rm 3438220c-qa-svr
-                        sudo docker run -dit --name 3438220c-qa-svr --hostname 3438220c-qa-svr.localdomain --net customnetwork --ip 192.168.100.110 -p 33200:80 ubuntu:18.04 sleep infinity
-                          qa-bkup-image
-                        '''
-                        echo "Op-3438220c-S3: QA server rolled back"
-                        error('Aborting pipeline')
-                    } else {
-                        echo "Op-3438220c-S3: Proceeding to Prod deployment"
+                sh '''
+                # Stop and remove existing container
+                sudo docker stop 3438220c-qa-svr || true
+                sudo docker rm 3438220c-qa-svr || true
+                
+                # Recreate container from backup image
+                sudo docker run -d \
+                  --name 3438220c-qa-svr \
+                  --hostname 3438220c-qa-svr.localdomain \
+                  --network customnetwork \
+                  --ip 192.168.100.110 \
+                  -p 33200:80 \
+                  qa-bkup-image
+                
+                # Ensure Apache starts (since the container might not auto-start services)
+                sudo docker exec 3438220c-qa-svr service apache2 start
+                '''
+                echo "Op-3438220c-S3: QA server rolled back successfully"
+                error('Pipeline aborted after rollback')
+            } else {
+                echo "Op-3438220c-S3: Proceeding to Prod deployment"
                     }
                 }
             }
@@ -109,18 +120,28 @@ pipeline {
                         ]
                     )
                     
-                    if(release == 'Rollback') {
-                        sh '''
-                        sudo docker stop 3438220c-prod-svr
-                        sudo docker rm 3438220c-prod-svr
-                        sudo docker run -dit --name 3438220c-prod-svr --hostname 3438220c-prod-svr.localdomain --net customnetwork --ip 192.168.100.220 -p 33500:80 ubuntu:18.04 sleep infinity
+                    if (release == 'Rollback') {
+                sh '''
+                # Stop and remove existing container
+                sudo docker stop 3438220c-prod-svr || true
+                sudo docker rm 3438220c-prod-svr || true
 
-                          prod-bkup-image
-                        '''
-                        echo "Op-3438220c-S6: Prod server rolled back"
-                        error('Aborting pipeline')
-                    } else {
-                        echo "Op-3438220c-S6: Prod release confirmed"
+                # Recreate container from backup image with original settings
+                sudo docker run -d \
+                  --name 3438220c-prod-svr \
+                  --hostname 3438220c-prod-svr.localdomain \
+                  --network customnetwork \
+                  --ip 192.168.100.220 \
+                  -p 33500:80 \
+                  prod-bkup-image
+
+                # Ensure Apache starts
+                sudo docker exec 3438220c-prod-svr service apache2 start
+                '''
+                echo "Op-3438220c-S6: Prod server rolled back successfully"
+                error('Pipeline aborted after production rollback')
+            } else {
+                echo "Op-3438220c-S6: Prod release confirmed - deployment successful"
                     }
                 }
             }
