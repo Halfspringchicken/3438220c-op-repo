@@ -11,10 +11,10 @@ stages {
             
             // Replace Bolt command with containerized version
             sh '''
-            docker run --rm \
+           docker run --rm \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v ${WORKSPACE}:/workspace \
-  ghcr.io/puppetlabs/bolt:v3.17.0 \
+  puppet/bolt:3.17.0 \
   script run /workspace/3438220c_script \
   --targets docker://3438220c-qa-svr
             '''
