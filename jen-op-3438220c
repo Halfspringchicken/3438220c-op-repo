@@ -52,11 +52,7 @@ pipeline {
                         sh '''
                         sudo docker stop 3438220c-qa-svr
                         sudo docker rm 3438220c-qa-svr
-                        sudo docker run -d --name 3438220c-qa-svr \
-                          --network 3438220c-net \
-                          --ip 192.168.100.110 \
-                          --hostname 3438220c-qa-svr.localdomain \
-                          -p 33200:80 \
+                        sudo docker run -dit --name 3438220c-qa-svr --hostname 3438220c-qa-svr.localdomain --net customnetwork --ip 192.168.100.110 -p 33200:80 ubuntu:18.04 sleep infinity
                           qa-bkup-image
                         '''
                         echo "Op-3438220c-S3: QA server rolled back"
@@ -117,11 +113,8 @@ pipeline {
                         sh '''
                         sudo docker stop 3438220c-prod-svr
                         sudo docker rm 3438220c-prod-svr
-                        sudo docker run -d --name 3438220c-prod-svr \
-                          --network 3438220c-net \
-                          --ip 192.168.100.220 \
-                          --hostname 3438220c-prod-svr.localdomain \
-                          -p 33500:80 \
+                        sudo docker run -dit --name 3438220c-prod-svr --hostname 3438220c-prod-svr.localdomain --net customnetwork --ip 192.168.100.220 -p 33500:80 ubuntu:18.04 sleep infinity
+
                           prod-bkup-image
                         '''
                         echo "Op-3438220c-S6: Prod server rolled back"
