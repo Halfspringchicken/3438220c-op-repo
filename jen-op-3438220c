@@ -1,26 +1,21 @@
 pipeline {
     agent any
-
-stages {  
-   stage('Op-3438220c-S1') {
-    steps {
-        script {
-            // Backup steps (unchanged)
-            sh 'sudo docker rmi -f qa-bkup-image || true'
-            sh 'sudo docker commit 3438220c-qa-svr qa-bkup-image'
-            
-            // Replace Bolt command with containerized version
-            sh '''
-           docker run --rm \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v ${WORKSPACE}:/workspace \
-  puppet/bolt:3.17.0 \
-  script run /workspace/3438220c_script \
-  --targets docker://3438220c-qa-svr
-            '''
+    
+    stages {
+        stage('Op-3438220c-S1') {
+            steps {
+                script {
+                    // Clean up old backup and create new one
+                    sh 'sudo docker rmi -f qa-bkup-image || true'
+                    sh 'sudo docker commit 3438220c-qa-svr qa-bkup-image'
+                    
+                    // Execute Bolt script using absolute path
+                    sh '/opt/puppetlabs/bin/bolt script run ${WORKSPACE}/3438220c_script --targets docker://3438220c-qa-svr'
+                    
+                    echo "Op-S1-3438220c: QA web server is backed up and updated"
+                }
+            }
         }
-    }
-}
         
         stage('Op-3438220c-S2') {
             steps {
@@ -29,12 +24,9 @@ stages {
                     sh 'curl -Is http://localhost:33200 | head -n 1 > /tmp/qa-result-file'
                     def qaResult = readFile('/tmp/qa-result-file').trim()
                     
-                    echo "QA Test Result: ${qaResult}"
-                    
                     if(qaResult != "HTTP/1.1 200 OK") {
                         error("QA server test failed")
                     }
-                    
                     echo "Op-3438220c-S2: QA server is running after update"
                 }
             }
@@ -43,7 +35,7 @@ stages {
         stage('Op-3438220c-S3') {
             steps {
                 script {
-                    // Manual approval to proceed or rollback
+                    // Manual approval step
                     def proceed = input(
                         id: 'proceed', 
                         message: 'Proceed to Prod or Rollback QA?', 
@@ -57,13 +49,20 @@ stages {
                     )
                     
                     if(proceed == 'Rollback') {
-                        // Rollback QA
-                        sh 'docker stop 3438220c-qa-svr && docker rm 3438220c-qa-svr'
-                        sh 'docker run -d --name 3438220c-qa-svr --network 3438220c-net --ip 192.168.100.110 --hostname 3438220c-qa-svr.localdomain -p 33200:80 qa-bkup-image'
-                        echo "Op-3438220c-S3: QA server fails after update and is rolled back"
-                        error('Aborting')
+                        sh '''
+                        sudo docker stop 3438220c-qa-svr
+                        sudo docker rm 3438220c-qa-svr
+                        sudo docker run -d --name 3438220c-qa-svr \
+                          --network 3438220c-net \
+                          --ip 192.168.100.110 \
+                          --hostname 3438220c-qa-svr.localdomain \
+                          -p 33200:80 \
+                          qa-bkup-image
+                        '''
+                        echo "Op-3438220c-S3: QA server rolled back"
+                        error('Aborting pipeline')
                     } else {
-                        echo "Op-3438220c-S3: Proceed to roll out to Prod server"
+                        echo "Op-3438220c-S3: Proceeding to Prod deployment"
                     }
                 }
             }
@@ -72,16 +71,13 @@ stages {
         stage('Op-3438220c-S4') {
             steps {
                 script {
-                    // Remove old Prod backup if exists
-                    sh 'sudo docker rmi -f prod-bkup-image || true'  
-                    
-                    // Create new Prod backup
+                    // Prod backup
+                    sh 'sudo docker rmi -f prod-bkup-image || true'
                     sh 'sudo docker commit 3438220c-prod-svr prod-bkup-image'
                     
-                    // Update Prod server
-                    sh 'bolt script run "/operate/3438220c/3438220c_script" --targets 3438220c-prod-svr'
-                    
-                    echo "Op-3438220c-S4: Prod web server is backup and updated"
+                    // Update Prod
+                    sh '/opt/puppetlabs/bin/bolt script run ${WORKSPACE}/3438220c_script --targets docker://3438220c-prod-svr'
+                    echo "Op-3438220c-S4: Prod server is backed up and updated"
                 }
             }
         }
@@ -93,12 +89,9 @@ stages {
                     sh 'curl -Is http://localhost:33500 | head -n 1 > /tmp/prod-result-file'
                     def prodResult = readFile('/tmp/prod-result-file').trim()
                     
-                    echo "Prod Test Result: ${prodResult}"
-                    
                     if(prodResult != "HTTP/1.1 200 OK") {
                         error("Prod server test failed")
                     }
-                    
                     echo "Op-3438220c-S5: Prod server is running after update"
                 }
             }
@@ -107,7 +100,7 @@ stages {
         stage('Op-3438220c-S6') {
             steps {
                 script {
-                    // Manual approval to release or rollback
+                    // Final approval
                     def release = input(
                         id: 'release', 
                         message: 'Release to production or Rollback Prod?', 
@@ -121,13 +114,20 @@ stages {
                     )
                     
                     if(release == 'Rollback') {
-                        // Rollback Prod
-                        sh 'docker stop 3438220c-prod-svr && docker rm 3438220c-prod-svr'
-                        sh 'docker run -d --name 3438220c-prod-svr --network 3438220c-net --ip 192.168.100.220 --hostname 3438220c-prod-svr.localdomain -p 33500:80 prod-bkup-image'
-                        echo "Op-3438220c-S6: Prod web server is rolled back"
-                        error('Aborting')
+                        sh '''
+                        sudo docker stop 3438220c-prod-svr
+                        sudo docker rm 3438220c-prod-svr
+                        sudo docker run -d --name 3438220c-prod-svr \
+                          --network 3438220c-net \
+                          --ip 192.168.100.220 \
+                          --hostname 3438220c-prod-svr.localdomain \
+                          -p 33500:80 \
+                          prod-bkup-image
+                        '''
+                        echo "Op-3438220c-S6: Prod server rolled back"
+                        error('Aborting pipeline')
                     } else {
-                        echo "Op-3438220c-S6: Proceed to release Prod web server to production"
+                        echo "Op-3438220c-S6: Prod release confirmed"
                     }
                 }
             }
@@ -135,7 +135,7 @@ stages {
         
         stage('Op-3438220c-S7') {
             steps {
-                echo "Op-3438220c-S7: Prod web server is monitored and ready to serve."
+                echo "Op-3438220c-S7: Prod web server is monitored and ready to serve"
             }
         }
     }
@@ -149,4 +149,3 @@ stages {
         }
     }
 }
-
