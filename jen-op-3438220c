@@ -6,10 +6,10 @@ pipeline {
             steps {
                 script {
                     // Remove old QA backup if exists
-                    sh 'docker rmi -f qa-bkup-image || true'
+                    sh 'sudo docker rmi -f qa-bkup-image || true'
                     
                     // Create new QA backup
-                    sh 'docker commit 3438220c-qa-svr qa-bkup-image'
+                    sh 'sudo docker commit 3438220c-qa-svr qa-bkup-image'
                     
                     // Update QA server
                     sh 'bolt script run "/operate/3438220c/3438220c_script" --targets 3438220c-qa-svr'
@@ -70,10 +70,10 @@ pipeline {
             steps {
                 script {
                     // Remove old Prod backup if exists
-                    sh 'docker rmi -f prod-bkup-image || true'
+                    sh 'sudo docker rmi -f prod-bkup-image || true'
                     
                     // Create new Prod backup
-                    sh 'docker commit 3438220c-prod-svr prod-bkup-image'
+                    sh 'sudo docker commit 3438220c-prod-svr prod-bkup-image'
                     
                     // Update Prod server
                     sh 'bolt script run "/operate/3438220c/3438220c_script" --targets 3438220c-prod-svr'
