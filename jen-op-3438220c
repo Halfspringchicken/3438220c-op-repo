@@ -5,11 +5,11 @@ pipeline {
         stage('Op-3438220c-S1') {
             steps {
                 script {
-                    // Clean up old backup and create new one
+                    
                     sh 'sudo docker rmi -f qa-bkup-image || true'
                     sh 'sudo docker commit 3438220c-qa-svr qa-bkup-image'
                     
-                    // Execute Bolt script using absolute path
+                    
                     sh '/opt/puppetlabs/bin/bolt script run ${WORKSPACE}/3438220c_script --targets docker://3438220c-qa-svr'
                     
                     echo "Op-S1-3438220c: QA web server is backed up and updated"
@@ -20,7 +20,7 @@ pipeline {
         stage('Op-3438220c-S2') {
             steps {
                 script {
-                    // Test QA server
+                    
                     sh 'curl -Is http://localhost:33200 | head -n 1 > /tmp/qa-result-file'
                     def qaResult = readFile('/tmp/qa-result-file').trim()
                     
@@ -35,7 +35,7 @@ pipeline {
         stage('Op-3438220c-S3') {
             steps {
                 script {
-                    // Manual approval step
+                    
                     def proceed = input(
                         id: 'proceed', 
                         message: 'Proceed to Prod or Rollback QA?', 
@@ -50,11 +50,11 @@ pipeline {
                     
                     if(proceed == 'Rollback') {
                 sh '''
-                # Stop and remove existing container
+                
                 sudo docker stop 3438220c-qa-svr || true
                 sudo docker rm 3438220c-qa-svr || true
                 
-                # Recreate container from backup image
+                
                 sudo docker run -d \
                   --name 3438220c-qa-svr \
                   --hostname 3438220c-qa-svr.localdomain \
@@ -63,7 +63,7 @@ pipeline {
                   -p 33200:80 \
                   qa-bkup-image
                 
-                # Ensure Apache starts (since the container might not auto-start services)
+                
                 sudo docker exec 3438220c-qa-svr service apache2 start
                 '''
                 echo "Op-3438220c-S3: QA server rolled back successfully"
@@ -78,11 +78,11 @@ pipeline {
         stage('Op-3438220c-S4') {
             steps {
                 script {
-                    // Prod backup
+                    
                     sh 'sudo docker rmi -f prod-bkup-image || true'
                     sh 'sudo docker commit 3438220c-prod-svr prod-bkup-image'
                     
-                    // Update Prod
+                    
                     sh '/opt/puppetlabs/bin/bolt script run ${WORKSPACE}/3438220c_script --targets docker://3438220c-prod-svr'
                     echo "Op-3438220c-S4: Prod server is backed up and updated"
                 }
@@ -92,7 +92,7 @@ pipeline {
         stage('Op-3438220c-S5') {
             steps {
                 script {
-                    // Test Prod server
+                    
                     sh 'curl -Is http://localhost:33500 | head -n 1 > /tmp/prod-result-file'
                     def prodResult = readFile('/tmp/prod-result-file').trim()
                     
@@ -107,7 +107,7 @@ pipeline {
         stage('Op-3438220c-S6') {
             steps {
                 script {
-                    // Final approval
+                    
                     def release = input(
                         id: 'release', 
                         message: 'Release to production or Rollback Prod?', 
@@ -122,11 +122,11 @@ pipeline {
                     
                     if (release == 'Rollback') {
                 sh '''
-                # Stop and remove existing container
+                
                 sudo docker stop 3438220c-prod-svr || true
                 sudo docker rm 3438220c-prod-svr || true
 
-                # Recreate container from backup image with original settings
+                
                 sudo docker run -d \
                   --name 3438220c-prod-svr \
                   --hostname 3438220c-prod-svr.localdomain \
@@ -135,7 +135,7 @@ pipeline {
                   -p 33500:80 \
                   prod-bkup-image
 
-                # Ensure Apache starts
+                
                 sudo docker exec 3438220c-prod-svr service apache2 start
                 '''
                 echo "Op-3438220c-S6: Prod server rolled back successfully"
